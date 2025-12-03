@@ -55,7 +55,7 @@ def colormap_norms(norms: NumpyTensor['h w'], background=np.array([255, 255, 255
     return Image.fromarray(norms)
 
 
-DEFAULT_CAMERA_PARAMS = {'fov': 60, 'znear': 0.01, 'zfar': 16}
+DEFAULT_CAMERA_PARAMS = {'type': 'orth', 'fov': 60, 'znear': 0.01, 'zfar': 16}
 
 
 class Renderer:
@@ -95,7 +95,8 @@ class Renderer:
             raise ValueError(f'Invalid source type {type(source)}')
         
         # rearrange mesh for faceid rendering
-        self.tmesh_faceid = duplicate_verts(self.tmesh)
+        # self.tmesh_faceid = duplicate_verts(self.tmesh)
+        self.tmesh_faceid = self.tmesh
         self.scene_faceid = pyrender.Scene(ambient_light=[1.0, 1.0, 1.0])
         self.scene_faceid.add(
             pyrender.Mesh.from_trimesh(self.tmesh_faceid, smooth=smooth)
@@ -105,9 +106,27 @@ class Renderer:
         """
         """
         self.camera_params = camera_params or dict(DEFAULT_CAMERA_PARAMS)
-        self.camera_params['yfov'] = self.camera_params.get('yfov', self.camera_params.pop('fov'))
-        self.camera_params['yfov'] = self.camera_params['yfov'] * np.pi / 180.0
-        self.camera = pyrender.PerspectiveCamera(**self.camera_params)
+        camera_type = self.camera_params.get('type', 'orth')
+        if camera_type == 'orth':
+            self.camera = pyrender.OrthographicCamera(
+                self.camera_params.get('xmag', 1.0),
+                self.camera_params.get('ymag', 1.0),
+                self.camera_params.get('znear', 0.01),
+                self.camera_params.get('zfar', 16.0),
+                name=None,
+            )
+        elif camera_type == 'pers':
+            self.camera_params['yfov'] = self.camera_params.get('yfov', self.camera_params.pop('fov'))
+            self.camera_params['yfov'] = self.camera_params['yfov'] * np.pi / 180.0
+            self.camera = pyrender.PerspectiveCamera(
+                self.camera_params.get('yfov'),
+                self.camera_params.get('znear', 0.01),
+                self.camera_params.get('zfar', 16.0),
+                self.camera_params.get('aspectRatio', None),
+                name=None,
+            )
+        else:
+            raise ValueError(f'Invalid camera type {self.camera_params.get("type")}')    
         
         self.camera_node        = self.scene       .add(self.camera)
         self.camera_node_faceid = self.scene_faceid.add(self.camera)
@@ -171,9 +190,10 @@ class Renderer:
                 verts_norms = self.tmesh.vertex_normals[verts_index] # (n, 3, 3)
                 norms = np.sum(verts_norms * bcent.reshape(-1, 3, 1), axis=1)
                 norms = norms.reshape(bcent.shape)
-
-            diffuse = np.sum(norms * lightdir, axis=2)
-            diffuse = np.clip(diffuse, -1, 1)
+            
+            # diffuse = np.sum(norms * lightdir, axis=2)
+            # diffuse = np.clip(diffuse, -1, 1)
+            diffuse = np.clip(norms, -1, 1)
             matte = 255 * (diffuse[:, :, None] * alpha + beta)
             matte = np.where(depth[:, :, None] > 0, matte, 255)
             matte = np.clip(matte, 0, 255).astype(np.uint8)

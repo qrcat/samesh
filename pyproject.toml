@@ -7,7 +7,7 @@ name = "samesh"
 version = "0.0.1"
 description = "Segment Any Mesh"
 readme = "README.md"
-requires-python = ">=3.12.0"
+requires-python = ">=3.7.0"
 classifiers = [
     "Programming Language :: Python",
 ]
@@ -23,9 +23,12 @@ dependencies = [
     "tqdm",
     "scikit-learn",
     "natsort",
-    "numpy==1.26.4",
-    "torch==2.3.1",
-    "torchvision==0.18.1",
+    "numpy",
+    "torch",
+    "iopath",
+    "pymaxflow",
+    "hydra-core",
+    "torchvision",
     "torchtyping",
     "matplotlib",
     "opencv-python",

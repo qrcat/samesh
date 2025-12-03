@@ -5,6 +5,11 @@ import torch
 def golden_ratio():
     return (1 + np.sqrt(5)) / 2
 
+def edge():
+    return np.array([
+        [ 0,  1,  0],
+        [ 0, -1,  0],
+    ])
 
 def tetrahedron():
     return np.array([
