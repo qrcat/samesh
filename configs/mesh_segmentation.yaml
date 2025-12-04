@@ -5,12 +5,8 @@ output: /mnt/private_rqy/samesh/outputs/mesh_segmentation_output
 
 sam:
   sam:
-    checkpoint: /mnt/private_rqy/mvs_uv/checkpoints/sam2_hiera_large.pt
-    model_config: sam2_hiera_l.yaml
-    # checkpoint: /mnt/private_rqy/mvs_uv/checkpoints/sam2.1_hiera_small.pt
-    # model_config: configs/sam2.1/sam2.1_hiera_s.yaml
-    # checkpoint: /mnt/private_rqy/mvs_uv/checkpoints/sam2.1_hiera_tiny.pt
-    # model_config: configs/sam2.1/sam2.1_hiera_t.yaml
+    checkpoint: checkpoints/sam2.1_hiera_tiny.pt
+    model_config: configs/sam2.1/sam2.1_hiera_t.yaml
     auto: True
     ground: False
     engine_config:

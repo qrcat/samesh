@@ -107,50 +107,80 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=str)
 
     sam_group = parser.add_argument_group("sam")
-    sam_group.add_argument("--sam.sam.checkpoint", type=str)
-    sam_group.add_argument("--sam.sam.model_config", type=str)
-    sam_group.add_argument("--sam.sam.engine_config.points_per_side", type=int)
-    sam_group.add_argument("--sam.sam.engine_config.crop_n_layers", type=int)
-    sam_group.add_argument("--sam.sam.engine_config.pred_iou_thresh", type=float)
-    sam_group.add_argument("--sam.sam.engine_config.stability_score_thresh", type=float)
-    sam_group.add_argument("--sam.sam.engine_config.stability_score_offset", type=float)
+    sam_group.add_argument("--sam.sam.checkpoint", type=str,
+        help="Path to SAM model checkpoint file.")
+    sam_group.add_argument("--sam.sam.model_config", type=str,
+        help="Path to SAM model configuration file.")
+    sam_group.add_argument("--sam.sam.engine_config.points_per_side", type=int,
+        help="Controls the density of the automatic sampling grid. A value of 8 places 8 sample points along each side of the image, producing a total of 8 × 8 = 64 points. Speed priority: reduce to 4-6; accuracy priority: increase to 16-32.")
+    sam_group.add_argument("--sam.sam.engine_config.crop_n_layers", type=int,
+        help="Number of layers used for multi-scale segmentation. A value of 0 disables multi-scale processing for highest speed. Increasing to 2-3 improves small object detection but significantly increases computation cost.")
+    sam_group.add_argument("--sam.sam.engine_config.pred_iou_thresh", type=float,
+        help="Threshold for predicted mask quality based on IoU (mask-object overlap). High precision: increase to 0.8-0.9; high recall: decrease to 0.4-0.6.")
+    sam_group.add_argument("--sam.sam.engine_config.stability_score_thresh", type=float,
+        help="Threshold for mask stability under small perturbations. Smooth edges: increase to 0.95-1.0; preserve details: decrease to 0.7-0.8.")
+    sam_group.add_argument("--sam.sam.engine_config.stability_score_offset", type=float,
+        help="Offset used in stability score computation. Standard use cases typically do not require adjustment.")
 
     sam_mesh_group = parser.add_argument_group("sam_mesh")
     sam_mesh_group.add_argument(
-        "--sam_mesh.use_modes", nargs="+", type=str, choices=["matte", "norms"]
+        "--sam_mesh.use_modes", nargs="+", type=str, choices=["matte", "norms"],
+        help="Rendering modes to use. Choose 'matte' for masks, add 'norms' for normal information."
     )
-    sam_mesh_group.add_argument("--sam_mesh.color_res", type=float)
-    sam_mesh_group.add_argument("--sam_mesh.min_area", type=int)
-    sam_mesh_group.add_argument("--sam_mesh.face2label_threshold", type=int)
-    sam_mesh_group.add_argument("--sam_mesh.connections_threshold", type=int)
-    sam_mesh_group.add_argument("--sam_mesh.counter_lens_threshold_min", type=int)
-    sam_mesh_group.add_argument("--sam_mesh.connections_bin_resolution", type=int)
+    sam_mesh_group.add_argument("--sam_mesh.color_res", type=float,
+        help="is use for DFS.")
+    sam_mesh_group.add_argument("--sam_mesh.min_area", type=int,
+        help="Connected component size threshold (in pixels) for removing small artifacts from binary masks using OpenCV's connectedComponentsWithStats. High noise: increase to 64-128; preserve details: decrease to 8-16.")
+    sam_mesh_group.add_argument("--sam_mesh.face2label_threshold", type=int,
+        help="Minimum occurrences of a face ID within a label region before the face-label association is considered valid. High precision: increase to 8-12; high recall: decrease to 2-3.")
+    sam_mesh_group.add_argument("--sam_mesh.connections_threshold", type=int,
+        help="Minimum shared-face observations required for a connection between two labels (from different views) to be kept in the match graph. High confidence: increase to 8-16; more connections: decrease to 1-2.")
+    sam_mesh_group.add_argument("--sam_mesh.counter_lens_threshold_min", type=int,
+        help="Lower bound on connections before treating a label as 'overly connected'. Used with percentile-based threshold to enforce graph sparsity. Stricter: increase to 20-30; more lenient: decrease to 0.")
+    sam_mesh_group.add_argument("--sam_mesh.connections_bin_resolution", type=int,
+        help="Number of histogram bins for modeling connection-strength ratio distribution. Fine-grained: increase to 150-200; coarse-grained: decrease to 50-80.")
     sam_mesh_group.add_argument(
-        "--sam_mesh.connections_bin_threshold_percentage", type=float
+        "--sam_mesh.connections_bin_threshold_percentage", type=float,
+        help="Fraction of histogram's total area for adaptive cutoff bin; connections below corresponding ratio are discarded. Stricter: increase to 0.05-0.1; more lenient: keep 0.0."
     )
     sam_mesh_group.add_argument(
-        "--sam_mesh.smoothing_threshold_percentage_size", type=float
+        "--sam_mesh.smoothing_threshold_percentage_size", type=float,
+        help="Fractional size threshold for removing small connected components (by face count) relative to largest component. More aggressive: increase to 0.15-0.2; conservative: decrease to 0.05-0.08."
     )
     sam_mesh_group.add_argument(
-        "--sam_mesh.smoothing_threshold_percentage_area", type=float
+        "--sam_mesh.smoothing_threshold_percentage_area", type=float,
+        help="Fractional area threshold for removing small connected components (by surface area) relative to largest component. More aggressive: increase to 0.15-0.2; conservative: decrease to 0.05-0.08."
     )
-    sam_mesh_group.add_argument("--sam_mesh.smoothing_iterations", type=int)
-    sam_mesh_group.add_argument("--sam_mesh.repartition_cost", type=int)
-    sam_mesh_group.add_argument("--sam_mesh.repartition_lambda", type=int)
-    sam_mesh_group.add_argument("--sam_mesh.repartition_iterations", type=int)
+    sam_mesh_group.add_argument("--sam_mesh.smoothing_iterations", type=int,
+        help="Number of smoothing passes where unlabeled faces adopt the most common label among labeled neighbors. More filling: increase to 64-128; avoid over-smoothing: decrease to 8-16.")
+    sam_mesh_group.add_argument("--sam_mesh.repartition_cost", type=int,
+        help="Cost parameter for repartitioning. Adjust as needed.")
+    sam_mesh_group.add_argument("--sam_mesh.repartition_lambda", type=float,
+        help="Weight (λ) balancing data cost vs. smoothness cost in graph-cut energy: TotalCost = DataCost + λ × SmoothnessCost. Smoother: increase to 2-4; more details: decrease to 0.5-1.0.")
+    sam_mesh_group.add_argument("--sam_mesh.repartition_iterations", type=int,
+        help="Number of alpha-expansion cycles by graph-cut optimizer. Better convergence: increase to 3-8; fast processing: keep 1.")
 
     renderer_group = parser.add_argument_group("renderer")
-    renderer_group.add_argument("--renderer.target_dim", nargs="+", type=int)
+    renderer_group.add_argument("--renderer.target_dim", nargs="+", type=int,
+        help="Output resolution of rendered images. High quality: increase to 1024x1024; fast processing: decrease to 256x256.")
     renderer_group.add_argument(
-        "--renderer.camera_params.type", type=str, choices=["orth", "pers"]
+        "--renderer.camera_params.type", type=str, choices=["orth", "pers"],
+        help="Camera projection type: 'orth' for orthographic projection, 'pers' for perspective projection."
     )
-    renderer_group.add_argument("--renderer.camera_params.xmag", type=float)
-    renderer_group.add_argument("--renderer.camera_params.ymag", type=float)
-    renderer_group.add_argument("--renderer.camera_params.fov", type=float)
-    renderer_group.add_argument("--renderer.camera_params.yfov", type=float)
-    renderer_group.add_argument("--renderer.camera_params.aspectRatio", type=float)
-    renderer_group.add_argument("--renderer.camera_params.znear", type=float)
-    renderer_group.add_argument("--renderer.camera_params.zfar", type=float)
+    renderer_group.add_argument("--renderer.camera_params.xmag", type=float,
+        help="Orthographic camera magnification in X direction.")
+    renderer_group.add_argument("--renderer.camera_params.ymag", type=float,
+        help="Orthographic camera magnification in Y direction.")
+    renderer_group.add_argument("--renderer.camera_params.fov", type=float,
+        help="Field of view angle for perspective camera.")
+    renderer_group.add_argument("--renderer.camera_params.yfov", type=float,
+        help="Vertical field of view angle for perspective camera.")
+    renderer_group.add_argument("--renderer.camera_params.aspectRatio", type=float,
+        help="Aspect ratio (width/height) for perspective camera.")
+    renderer_group.add_argument("--renderer.camera_params.znear", type=float,
+        help="Near clipping plane distance.")
+    renderer_group.add_argument("--renderer.camera_params.zfar", type=float,
+        help="Far clipping plane distance.")
     renderer_group.add_argument(
         "--renderer.camera_generation_method",
         type=str,
@@ -163,31 +193,33 @@ if __name__ == "__main__":
             "standard",
             "swirl",
             "sphere",
+            "edge",
         ],
-        help="Method used to sample camera viewpoints.",
+        help="Method for sampling camera viewpoints. Choose based on object shape.",
     )
     renderer_group.add_argument(
         "--renderer.sampling_args.radius",
         type=float,
-        help="All methods require `radius`.",
+        help="Camera distance from object center. Required for all methods.",
     )
     renderer_group.add_argument(
         "--renderer.sampling_args.n",
         type=int,
-        help="`sphere`, `standard` and `swirl`: requires `n` (number of samples).",
+        help="Number of camera samples. Required for 'sphere', 'standard', and 'swirl' methods.",
     )
     renderer_group.add_argument(
         "--renderer.sampling_args.elevation",
         type=int,
-        help="`standard`: requires `elevation`.",
+        help="Camera elevation angle. Required for 'standard' method.",
     )
     renderer_group.add_argument(
-        "--renderer.sampling_args.cycles", type=int, help="`swirl`: requires `cycles`."
+        "--renderer.sampling_args.cycles", type=int, 
+        help="Number of swirl cycles. Required for 'swirl' method."
     )
     renderer_group.add_argument(
         "--renderer.sampling_args.elevation_range",
         type=int,
-        help="`swirl`: requires `elevation_range`.",
+        help="Elevation angle range for swirl pattern. Required for 'swirl' method.",
     )
 
     args = parser.parse_args()
